@@ -5,17 +5,19 @@
 On your development machine:
 
 ```bash
-gatherer -i -p problempod -c buggycontainer -m 50.0
+gatherer -i -p problempod -c buggycontainer -m 50.0 -f 2
 ```
 
-Here's what will happen:
+Here's what will happen: Every `2` seconds, processes inside `problempod/buggycontainer` which are using more than `50.0%` memory will be `straced`.  The results will end up in `strace-logs/<cmdname>-<pid>.log`.  You can tail this file as it's written.
+
+In more detail, what happens is:
 
 *  The `hunter` program will be built and copied to your target container
-*  The `hunter` program will begin polling for processes on the target container using, in this case, over `50.0%` memory
+*  The `hunter` program will begin polling for processes on the target container using, in this case, over `50.0%` memory every `2` seconds.
 *  `strace` will be called on each offending process, and the data will be streamed back to `gatherer` running on your local machine
-*  The incoming data will be redirected to local log files named like `<pid>-strace.log`
+*  The incoming data will be redirected to local log files located in the `strace-logs/` directory.  Each file will have both the human-readable name of the command being logged as well as its PID.
 
-You can CTRL-C out of `gatherer`, which will also (attempt to) close down `hunter` on the target container.
+You can CTRL-C out of `gatherer` to exit, which will sync local storage as well as (attempt to) close down `hunter` on the target container.  This almost always works!  However, sometimes `kubectl` can lag out or barf, in which case you may have to manually manage any zombie processes.
 
 ## Requirements
 Local machine:
@@ -31,7 +33,8 @@ Target machine:
 -p | Name of target pod | required
 -c | Name of target container | required
 -i | Include this argument to copy `hunter` to target container | optional, but must be run at least once, default false
--m | Memory usage threshold.  Value interpreted as a percentage.  Example values are like 50.0 or 12.3 etc. Processes on the target container exceeding this memory threshold will begin to be `straced` back to the `gatherer` app. | optional, default 0.0
+-m | Memory usage threshold.  Value interpreted as a percentage.  Example values are like 50.0 or 12.3 etc. Processes on the target container exceeding this memory threshold will begin to be `straced` back to the `gatherer` app. | optional, default 2.0
+-f | Scan frequency, in seconds.  Whatever integer is provided here is how many seconds will pass between each scan of the running processes to determine if any are violating the memory threshold. | optional, default 5
 
 ## Target Architecture
 Out-of-the-box `hunter` will assume the target container is a 64-bit Linux image.  If this isn't the case, make sure to update `GOOS` and `GOARCH` inside `build-hunter.sh`!
