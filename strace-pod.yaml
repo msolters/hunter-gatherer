@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: debug-pod
+spec:
+  containers:
+  - name: debug-pod
+    image: "golang:stretch"
+    command:
+      - /bin/sleep
+      - "infinity"
+    securityContext:
+      capabilities:
+        add: ["SYS_ADMIN", "SYS_PTRACE"]
