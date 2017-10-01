@@ -29,6 +29,7 @@ Target machine:
 *  `strace` (this can be tricky inside containers, see below)
 
 ## Arguments
+Arg | Description | Priority
 ---|---|---
 -p | Name of target pod | required
 -c | Name of target container | required
