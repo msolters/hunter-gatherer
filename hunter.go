@@ -5,8 +5,10 @@ import(
   "io"
   "os"
   "os/exec"
+  "os/signal"
   "fmt"
   "log"
+  "syscall"
   "strings"
   "strconv"
   "bufio"
@@ -15,6 +17,7 @@ import(
 
 // Keep track of which PIDs we're already stracing
 var pids_traced map[string]bool
+var strace_cmds map[string]*exec.Cmd
 // Any pid using over this memory percentage will be straced
 var mem_mnm_threshold float64
 
@@ -86,6 +89,7 @@ func trace_pipe(pid string, pipe *io.ReadCloser) {
 //  @brief  sdfs
 func trace_pid(pid string) {
   strace_cmd := exec.Command("strace", "-p", pid)
+  strace_cmds[pid] = strace_cmd
   //strace_stdout, _ := strace_cmd.StdoutPipe()
   strace_stderr, _ := strace_cmd.StderrPipe()
   strace_cmd.Start()
@@ -120,6 +124,24 @@ func main() {
 
   //  Init map of straced PIDs
   pids_traced = make( map[string]bool )
+  strace_cmds = make( map[string]*exec.Cmd )
+
+  //  Establish clean-up of strace threads when hunter
+  //  receives kill signals.
+  sigc := make(chan os.Signal, 1)
+  signal.Notify(sigc,
+    syscall.SIGHUP,
+    syscall.SIGINT,
+    syscall.SIGTERM,
+    syscall.SIGQUIT)
+  go func() {
+      <-sigc
+      fmt.Println("Exiting, cleaning up strace threads...")
+      for _, cmd := range strace_cmds {
+        cmd.Process.Kill()
+      }
+      os.Exit(0)
+  }()
 
   // Create a ticker that outputs elapsed time
   for {

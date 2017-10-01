@@ -9,12 +9,15 @@ import(
   "log"
   "bufio"
   "strings"
-  //"strconv"
 )
 
 // Keep track of which PIDs we're already stracing
-//var pids_traced map[string]bool
 var pod, container, hunter_pid string
+type PIDWriter struct {
+  file *os.File
+  writer *bufio.Writer
+}
+var pids_traced map[string]PIDWriter
 
 //  @brief  Compile the hunter.go program.
 //          Copy it to the remote pod/container target.
@@ -37,9 +40,30 @@ func install() {
   fmt.Println("done.")
 }
 
+//  @brief  Create a local log file and buffered writer object to handle
+//          streaming strace data to that file.
+func create_pid_writer(pid string) {
+  file_name := fmt.Sprintf("%s-strace.log", pid)
+  f, err := os.Create(file_name)
+  if err != nil {
+    log.Fatal(err)
+    return
+  }
+  w := bufio.NewWriter(f)
+  pids_traced[pid] = PIDWriter{f, w}
+}
+
+//  @brief  Flush all buffer writers and close all log files.
+func clean_up_files() {
+  for _, pid_writer := range pids_traced {
+    pid_writer.writer.Flush()
+    pid_writer.file.Close()
+  }
+}
+
 //  @brief
 func parse_line(line string) {
-  fmt.Println(line)
+  //fmt.Println(line)
   switch true {
   case strings.Contains(line, "[hunter-pid]"):
     fields := strings.Fields(line)
@@ -48,7 +72,12 @@ func parse_line(line string) {
     fields := strings.Fields(line)
     pid := fields[1]
     data_index := len(fields[0]) + len(pid) + 2*len("\t")
-    fmt.Printf("[%s]: %s\n", pid, line[data_index:])
+    if _, already_traced := pids_traced[pid]; !already_traced {
+      create_pid_writer(pid)
+    }
+    data := fmt.Sprintf("%s\n", line[data_index:])
+    fmt.Printf("[%s]: %s", pid, data)
+    pids_traced[pid].writer.WriteString( data )
   default:
     fmt.Println(line)
   }
@@ -57,18 +86,21 @@ func parse_line(line string) {
 //  @brief
 func terminate_hunter() {
   fmt.Printf("Terminating remote script...\n")
-  _, kill_err := exec.Command("kubectl", "exec", pod, "-c", container, "--", "kill", hunter_pid).Output()
+  _, kill_err := exec.Command("kubectl", "exec", pod, "-c", container, "--", "kill", "-15", hunter_pid).Output()
   if kill_err != nil {
     log.Fatal(kill_err)
     fmt.Printf("Error terminating remote script!  PID %s may now be a zombie process.\n", hunter_pid)
     os.Exit(1)
   }
+  fmt.Println("done.")
+  os.Exit(0)
 }
 
 //  @brief  kubectl exec the hunter program on the remote container.
 //          Listen to and parse the results.
 func listen_to_remote(mem_threshold string) {
-  fmt.Printf("Connecting to %s/%s.\nstracing any processes with mem usage over %s%%:\n\n", pod, container, mem_threshold)
+  fmt.Printf("\nstracing processes with %%MEM > %s%%:\n", mem_threshold)
+  fmt.Printf("Connecting to %s/%s:\n\n", pod, container)
   listen_cmd := exec.Command("kubectl", "exec", pod, "-c", container, "-t", "--", "/tmp/hunter", "-m", mem_threshold)
   listen_stdout, _ := listen_cmd.StdoutPipe()
   listen_cmd.Start()
@@ -104,15 +136,17 @@ func main() {
 
   if *installation_arg { install() }
 
+  //  Catch kill signals to shutdown gracefully
   go func(){
     c := make(chan os.Signal, 1)
     signal.Notify(c, os.Interrupt)
     <-c
+    clean_up_files()
     terminate_hunter()
-    fmt.Println("done.")
-    os.Exit(0)
   }()
 
+  pids_traced = make( map[string]PIDWriter )
+  //  Connect to the target container!
   listen_to_remote( *mem_threshold_arg )
-  //pids_traced = make( map[string]bool )
+
 }
