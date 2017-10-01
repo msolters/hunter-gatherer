@@ -114,6 +114,7 @@ func main() {
 
   //  Parse args
   mem_threshold_str := flag.String("m", "0.0", "Minimum memory usage threshold")
+  frequency_arg := flag.Int("f", 5, "Frequency with which processes are scanned for memory usage, in seconds.")
   flag.Parse()
 
   //  Get minimum mem usage threshold
@@ -149,7 +150,7 @@ func main() {
   for {
     pids := find_high_mem_processes()
     trace_pids( pids )
-    time.Sleep(5 * time.Second)
+    time.Sleep(time.Duration(*frequency_arg) * time.Second)
   }
 
 }

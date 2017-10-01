@@ -100,10 +100,11 @@ func terminate_hunter() {
 
 //  @brief  kubectl exec the hunter program on the remote container.
 //          Listen to and parse the results.
-func listen_to_remote(mem_threshold string) {
-  fmt.Printf("\nstracing processes with %%MEM > %s%%.\n", mem_threshold)
+func listen_to_remote(mem_threshold string, frequency string) {
+  fmt.Printf("\nProcess scan every %s seconds.\n", frequency)
+  fmt.Printf("stracing processes with %%MEM > %s%%.\n", mem_threshold)
   fmt.Printf("Connecting to %s/%s:\n\n", pod, container)
-  listen_cmd := exec.Command("kubectl", "exec", pod, "-c", container, "-t", "--", "/tmp/hunter", "-m", mem_threshold)
+  listen_cmd := exec.Command("kubectl", "exec", pod, "-c", container, "-t", "--", "/tmp/hunter", "-m", mem_threshold, "-f", frequency)
   listen_stdout, _ := listen_cmd.StdoutPipe()
   listen_cmd.Start()
 
@@ -122,8 +123,9 @@ func main() {
   //  Parse arguments
   pod_arg := flag.String("p", "", "Name of the problem pod")
   container_arg := flag.String("c", "", "Name of the container in peril")
-  mem_threshold_arg := flag.String("m", "0.0", "Minimum memory usage (interpreted as percentage, like 33.3) to trigger a process strace")
+  mem_threshold_arg := flag.String("m", "2.0", "Minimum mem usage by a process to trigger it being straced. Will be interpreted as a float percent value.")
   installation_arg := flag.Bool("i", false, "Install remote script to target container?")
+  frequency_arg := flag.String("f", "5", "Frequency with which processes are scanned for memory usage, in seconds.")
   flag.Parse()
 
   pod = *pod_arg
@@ -154,6 +156,5 @@ func main() {
 
   pid_writers = make( map[string]PIDWriter )
   //  Connect to the target container!
-  listen_to_remote( *mem_threshold_arg )
-
+  listen_to_remote( *mem_threshold_arg, *frequency_arg )
 }
