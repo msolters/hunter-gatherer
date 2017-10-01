@@ -51,7 +51,8 @@ func find_high_mem_processes() ([]string) {
         break
       } else {
         high_mem_pids = append( high_mem_pids, pid )
-        fmt.Printf("Now stracing %s (PID: %s\tMEM: %v)\n", cmd, pid, mem_usage)
+        fmt.Printf("[strace-start]\t%s\t%s\n", pid, cmd)
+        fmt.Printf("stracing PID: %6s\tMEM: %5v\tCMD: %s\n", pid, mem_usage, cmd)
       }
     } else {
       if fields[0] == "PID" && !readings_started {
@@ -82,7 +83,7 @@ func trace_pipe(pid string, pipe *io.ReadCloser) {
   scanner.Split(bufio.ScanLines)
   for scanner.Scan() {
     line := scanner.Text()
-    fmt.Printf("[strace]\t%s\t%s\n", pid, line)
+    fmt.Printf("[strace-data]\t%s\t%s\n", pid, line)
   }
 }
 
@@ -108,7 +109,8 @@ func trace_pids(pids []string) {
 }
 
 func main() {
-  fmt.Printf("Mem Leak Hunter\n[hunter-pid]\t%v\n", os.Getpid())
+  fmt.Println("[Mem Leak Hunter Started]")
+  fmt.Printf("[hunter-pid]\t%v\n", os.Getpid())
 
   //  Parse args
   mem_threshold_str := flag.String("m", "0.0", "Minimum memory usage threshold")

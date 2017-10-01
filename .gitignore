@@ -1,2 +1,3 @@
 hunter
 gatherer
+strace-logs/*.log
