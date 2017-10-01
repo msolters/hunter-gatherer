@@ -1,6 +1,10 @@
 # hunter-gatherer
 `strace` debugging for memory leaks in Kubernetes containers and who wanna learn to debug other containers good, too.
 
+You can pass this tool a Kube pod name, container name, and memory threshold, and it will create realtime `strace` log files on your local dev machine for all processes on the target container that are exceeding the memory threshold!
+
+![](hunter-gatherer-example.png)
+
 ## Quick Start
 On your development machine:
 
@@ -8,7 +12,7 @@ On your development machine:
 gatherer -i -p problempod -c buggycontainer -m 50.0 -f 2
 ```
 
-Here's what will happen: Every `2` seconds, processes inside `problempod/buggycontainer` which are using more than `50.0%` memory will be `straced`.  The results will end up in `strace-logs/<cmdname>-<pid>.log`.  You can tail this file as it's written.
+Here's what will happen: Every `2` seconds, processes inside `problempod/buggycontainer` which are using more than `50.0%` memory will be `straced`.  The results will end up in `strace-logs/<cmdname>-<pid>.log`.  You can tail these files as they're written.
 
 In more detail, what happens is:
 
@@ -21,7 +25,7 @@ You can CTRL-C out of `gatherer` to exit, which will sync local storage as well 
 
 ## Requirements
 Local machine:
-*  Golang environment (need to be able to build).
+*  Golang environment (you can run `hunter` with `go build` and execute, or just `go run`)
 *  `kubectl`, authed for your target pods and containers.  `gatherer` will use `kubectl` to `exec` and `cp` with the target container.
 
 Target machine:
@@ -77,7 +81,7 @@ spec:
     image: "golang:stretch"
     command:
       - /bin/sleep
-      - "300"
+      - "infinity"
     securityContext:
       capabilities:
         add: ["SYS_ADMIN", "SYS_PTRACE"]
