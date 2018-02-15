@@ -127,3 +127,4 @@ restart_syscall(<... resuming interrupted nanosleep ...>
 ```
 
 If you're using `strace` to debug memory leaks in a Kube deployment that can't be inferred from other logs, you've clearly got issues my friend.  It shouldn't be too much extra work to reconfigure your pods to be debuggable if it helps you track down the real problem!
+boop
